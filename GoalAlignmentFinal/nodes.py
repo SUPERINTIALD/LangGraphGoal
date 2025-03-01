@@ -19,6 +19,7 @@ def call_goal_creator_advisor(
     """Calls the 'goal_creator_agent' to refine or create the user's goal."""
     response = goal_creator_agent.invoke(state)
     print(colorama.Fore.GREEN + f"Moving to node: human")
+    update_goal_state(state)
 
     return Command(update=response, goto="human")
 
@@ -101,7 +102,7 @@ def call_goal_validator(
 #     )
 def human_node(
     state: MessagesState, config
-) -> Command[Literal["goal_creator_advisor", "goal_validator", "goal_satisfied", "human", "decision_maker"]]:
+) -> Command[Literal["goal_creator_advisor", "goal_validator", "goal_satisfied", "human", "decision_maker", "end_node"]]:
     print(colorama.Fore.CYAN + ">> Entering human_node \n")
     user_input = interrupt(value="[Human Node] Ready for user input:")
     
@@ -269,13 +270,22 @@ def decision_maker_node(
     # For example, if the message contains "valid", "confirmed" or "yes", we move forward.
     if any(keyword in agent_text.lower() for keyword in ["valid", "confirmed", "yes"]):
         print(colorama.Fore.GREEN + "DecisionMaker LLM determined the goal is valid. Moving to node: end_node")
-        return Command(
-            update={"messages": [{
-                "role": "ai",
-                "content": f"{agent_text}\nThe decision maker LLM confirmed the goal is satisfactory.",
-            }]},
-            goto="end_node"
-        )
+        # return Command(
+        #     update={"messages": [{
+        #         "role": "ai",
+        #         "content": f"{agent_text}\nThe decision maker LLM confirmed the goal is satisfactory.",
+        #     }]},
+        #     goto="end_node"
+        # )
+        final_message = {"role": "ai", "content": f"{agent_text}\nThe decision maker LLM confirmed the goal is satisfactory."}
+        if hasattr(state, "messages"):
+            state.messages.append(final_message)
+        else:
+            state.setdefault("messages", []).append(final_message)
+        # Update the goal state with the new message.
+        update_goal_state(state)
+        return end_node(state)
+
     else:
         print(colorama.Fore.GREEN + "DecisionMaker LLM determined the goal is not valid. Moving to node: goal_creator_advisor")
         return Command(
@@ -344,29 +354,146 @@ def decision_maker_node(
 #         )
 
 
-def end_node(state: MessagesState) -> Command[Literal[END]]:
-    print(colorama.Fore.CYAN + ">> Entering end_node \n")
+# def end_node(state: MessagesState) -> Command[Literal[END]]:
+#     print(colorama.Fore.CYAN + ">> Entering end_node \n")
 
+#     """
+#     Finalizes the conversation by extracting the current goal from the conversation
+#     and storing it using the goal manager. This avoids keeping the full MessageState.
+#     """
+#     # Dynamically extract the most recent AI output that represents the refined goal.
+#     # final_goal = None
+#     # for message in reversed(state.messages):
+#     #     # You may want to adjust this extraction logic if your protocol differs.
+#     #     if message.get("role") == "ai" and message.get("content"):
+#     #         final_goal = message["content"].strip()
+#     #         break
+
+#     # if final_goal:
+#     #     try:
+#     #         # Import and store the goal without any hardcoding
+#     #         from goal_manager import store_goal
+#     #         goal_id = store_goal(final_goal)
+#     #         print(f"Goal successfully stored with ID: {goal_id}")
+#     #     except Exception as e:
+#     #         print(f"Error storing goal: {e}")
+#     # else:
+#     #     print("No valid final goal was found in the conversation state.")
+
+#     # print("Conversation ended. Thank you for using our service!")
+#     # return Command(goto=END)
+#      # Support both dict-based state and object-based state.
+#     messages = state.messages if hasattr(state, "messages") else state.get("messages", [])
+    
+#     # Dynamically extract the most recent AI output that represents the refined goal.
+#     final_goal = None
+#     for message in reversed(messages):
+#         # Use .get() if available; otherwise, fallback to attribute access.
+#         if hasattr(message, "get"):
+#             role = message.get("role", None)
+#             content = message.get("content", None)
+#         else:
+#             role = getattr(message, "role", None)
+#             content = getattr(message, "content", None)
+            
+#         if role == "ai" and content:
+#             final_goal = content.strip()
+#             break
+
+#     if final_goal:
+#         try:
+#             from goal_manager import store_goal
+#             goal_id = store_goal(final_goal)
+#             print(f"Goal successfully stored with ID: {goal_id}")
+#         except Exception as e:
+#             print(f"Error storing goal: {e}")
+#     else:
+#         print("No valid final goal was found in the conversation state.")
+
+#     print("Conversation ended. Thank you for using our service!")
+#     return Command(goto=END)
+
+
+
+# Helper function to update the goal state.
+def update_goal_state(state: MessagesState) -> None:
     """
-    Finalizes the conversation by extracting the current goal from the conversation
-    and storing it using the goal manager. This avoids keeping the full MessageState.
+    Extracts the most recent AI message (the refined goal) from the state,
+    and then either stores or updates it using the goal_manager.
+    The goal ID is saved in state.metadata (or state["metadata"]) for later retrieval.
     """
-    # Dynamically extract the most recent AI output that represents the refined goal.
+    # Retrieve messages from state (supporting both attribute and dict style).
+    messages = state.messages if hasattr(state, "messages") else state.get("messages", [])
+    
+    # Extract the most recent AI message.
     final_goal = None
-    for message in reversed(state.messages):
-        # You may want to adjust this extraction logic if your protocol differs.
-        if message.get("role") == "ai" and message.get("content"):
-            final_goal = message["content"].strip()
+    for message in reversed(messages):
+        # Use .get() if available; otherwise, fallback to attribute access.
+        if hasattr(message, "get"):
+            role = message.get("role")
+            content = message.get("content")
+        else:
+            role = getattr(message, "role", None)
+            content = getattr(message, "content", None)
+            
+        if role == "ai" and content:
+            final_goal = content.strip()
             break
 
-    if final_goal:
+    if not final_goal:
+        print("No refined goal found to store/update.")
+        return
+
+    # Use a metadata dictionary to hold our goal ID.
+    # First, check if state already has metadata; if not, create it.
+    if hasattr(state, "metadata"):
+        metadata = state.metadata
+    else:
+        metadata = state.get("metadata", {})
+    
+    # If a goal_id is already present, update the goal.
+    if "goal_id" in metadata:
         try:
-            # Import and store the goal without any hardcoding
+            from goal_manager import update_goal
+            update_goal(metadata["goal_id"], final_goal)
+            print(f"Goal updated with ID: {metadata['goal_id']}")
+        except Exception as e:
+            print(f"Error updating goal: {e}")
+    else:
+        # Otherwise, store the new goal.
+        try:
             from goal_manager import store_goal
             goal_id = store_goal(final_goal)
+            # Save the goal_id back into state metadata.
+            if hasattr(state, "metadata"):
+                state.metadata["goal_id"] = goal_id
+            else:
+                metadata["goal_id"] = goal_id
+                state["metadata"] = metadata
             print(f"Goal successfully stored with ID: {goal_id}")
         except Exception as e:
             print(f"Error storing goal: {e}")
+
+def end_node(state: MessagesState) -> Command[Literal[END]]:
+    print(colorama.Fore.CYAN + ">> Entering end_node \n")
+    
+    # Update the goal state before finalizing.
+    update_goal_state(state)
+    
+    # Retrieve the stored goal ID from state.metadata.
+    goal_id = None
+    if hasattr(state, "metadata") and "goal_id" in state.metadata:
+        goal_id = state.metadata["goal_id"]
+    elif isinstance(state, dict) and "metadata" in state and "goal_id" in state["metadata"]:
+        goal_id = state["metadata"]["goal_id"]
+    
+    if goal_id:
+        try:
+            from goal_manager import get_goal
+            stored_goal = get_goal(goal_id)
+            print(f"Final Goal (ID: {goal_id}):\n{stored_goal}")
+        except Exception as e:
+            print(f"Error retrieving goal: {e}")
     else:
         print("No valid final goal was found in the conversation state.")
 

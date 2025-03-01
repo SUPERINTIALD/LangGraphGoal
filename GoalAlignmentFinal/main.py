@@ -12,6 +12,8 @@ from langgraph.graph import MessagesState, StateGraph, START, END
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command, interrupt
 from langgraph.checkpoint.memory import MemorySaver
+import colorama
+colorama.init(autoreset=True)
 
 from StateGraph import graph
 # from nodes import call_goal_creator_advisor, call_goal_validator, goal_satisfied_node, human_node, goal_satisfied_node, decision_maker_node, end_node
@@ -56,10 +58,14 @@ try:
 except Exception as e:
     print(f"Error generating graph visualization: {e}")
 
+
+
+
+
 thread_config = {"configurable": {"thread_id": uuid.uuid4()}}
 
 while True:
-    user_text = input("Enter your message (or type 'exit' to quit): ")
+    user_text = input(colorama.Fore.MAGENTA + "Enter your message (or type 'exit' to quit): ")
     if user_text.lower() in ["exit", "quit"]:
         break
 
