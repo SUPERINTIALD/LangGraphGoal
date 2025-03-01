@@ -1,7 +1,6 @@
-from langgraph.graph import MessagesState, StateGraph, START, END
-from langgraph.types import Command
+from langgraph.graph import MessagesState, StateGraph, START
 from langgraph.checkpoint.memory import MemorySaver
-from nodes import call_goal_creator_advisor, call_goal_validator, goal_satisfied_node, human_node, goal_satisfied_node, decision_maker_node, end_node
+from nodes import call_goal_creator_advisor, call_goal_validator, goal_satisfied_node, human_node, decision_maker_node, end_node
 #####################
 #   Build the Graph #
 #####################
@@ -21,7 +20,13 @@ builder.add_edge(START, "goal_creator_advisor")
 
 #Loop Goal Creation
 builder.add_edge("goal_creator_advisor", "human")
+builder.add_edge("goal_satisfied", "human")
+
 builder.add_edge("human", "goal_creator_advisor")
+builder.add_edge("human", "goal_satisfied")
+builder.add_edge("human", "goal_satisfied")
+builder.add_edge("decision_maker", "human")
+builder.add_edge("human", "decision_maker")
 
 #Decision Maker should have access to everything:
 

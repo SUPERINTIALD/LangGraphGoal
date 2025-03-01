@@ -3,9 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
-# from nodes import call_goal_creator_advisor, call_goal_validator, goal_satisfied_node, human_node, goal_satisfied_node, decision_maker_node, end_node
 from tools import dummy_tool
-# from StateGraph import builder
 #####################
 #   Agents (LLMs)   #
 #####################
@@ -64,6 +62,7 @@ decision_maker_agent = create_react_agent(
         "You are a 'goal decision maker router'. Begin every response with [DecisionMaker]. "
         "Analyze the current state of the goal and determine if it is fully refined, feasible, and clear. "
         "If you believe the goal still needs work, ask for more clarification or details. "
+        "Only move forward if the goal is fully refined, feasible, and clear, and the user agrees. "
         "If the goal appears valid, include the word 'valid' in your final message."
     ),
 )
@@ -75,8 +74,9 @@ goal_satisfied_agent = create_react_agent(
     goal_satisfied_tools,
     prompt=(
         "You are a 'goal satisfied agent'. Your task is to review the refined goal and determine if "
-        "both the LLM and the user appear satisfied with it. If the goal is sufficiently refined, "
-        "feasible, and clear, please include the word 'confirmed' in your final message. If not, "
-        "ask for additional details for further refinement."
+        "both the LLM and the user appear satisfied with it. "
+        "Always ask the user if they are satisfied with the goal. "
+        "If the user is satisfied, include the word 'confirmed' in your final message. "
+
     ),
 )
