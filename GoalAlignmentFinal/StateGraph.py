@@ -18,12 +18,24 @@ builder.add_node("end_node", end_node)
 
 # Edges
 builder.add_edge(START, "goal_creator_advisor")
+
+#Loop Goal Creation
 builder.add_edge("goal_creator_advisor", "human")
+builder.add_edge("human", "goal_creator_advisor")
+
+#Decision Maker should have access to everything:
+
+# builder.add_edge("decision_maker", "goal_validator")
+builder.add_edge("decision_maker", "goal_creator_advisor")
+builder.add_edge("decision_maker", "goal_satisfied")
+builder.add_edge("decision_maker", "end_node")
+
 builder.add_edge("goal_validator", "goal_satisfied")
 builder.add_edge("goal_satisfied", "goal_creator_advisor")
 builder.add_edge("goal_satisfied", "decision_maker")
-builder.add_edge("decision_maker", "goal_creator_advisor")
-builder.add_edge("goal_satisfied", "end_node")
+builder.add_edge("goal_creator_advisor", "decision_maker")
+
+# builder.add_edge("goal_satisfied", "end_node")
 
 
 checkpointer = MemorySaver()
