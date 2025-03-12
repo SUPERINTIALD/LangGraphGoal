@@ -53,17 +53,17 @@ builder.add_node("end_node", end_node)
 builder.add_edge(START, "goal_creator_advisor")
 
 # Human interaction edges
-builder.add_edge("goal_creator_advisor", "human")
-builder.add_edge("human", "goal_creator_advisor")
+# builder.add_edge("goal_creator_advisor", "human")
+# builder.add_edge("human", "goal_creator_advisor")
 
 builder.add_edge("goal_creator_advisor", "decision_maker")
-builder.add_edge("decision_maker", "goal_creator_advisor")
-builder.add_edge("decision_maker", "goal_satisfied")
-builder.add_edge("decision_maker", "end_node")
+# builder.add_edge("decision_maker", "goal_creator_advisor")
+# builder.add_edge("decision_maker", "goal_satisfied")
+# builder.add_edge("decision_maker", "end_node")
 
 
 # Goal processing flow
-builder.add_edge("goal_satisfied", "goal_creator_advisor")
+# builder.add_edge("goal_satisfied", "goal_creator_advisor")
 builder.add_edge("goal_satisfied", "end_node")
 
 checkpointer = MemorySaver()

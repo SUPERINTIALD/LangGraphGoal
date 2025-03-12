@@ -6,7 +6,7 @@ import colorama
 colorama.init(autoreset=True)
 
 
-from agents import goal_creator_agent, goal_validator_agent, decision_maker_agent, goal_satisfied_agent
+from agents import goal_creator_agent, goal_validator_agent, decision_maker_agent, goal_satisfied_agent, confirmation_agent
 #####################
 #   Node Functions  #
 #####################
@@ -84,64 +84,170 @@ def human_node(
 
 def goal_satisfied_node(
     state: MessagesState
-) -> Command[Literal["goal_creator_advisor", "decision_maker", "end_node"]]:
+) -> Command[Literal["goal_creator_advisor", "end_node"]]:
     print(colorama.Fore.CYAN + ">> Entering goal_satisfied_node \n")
     print(colorama.Fore.BLUE + "DEBUG: goal_satisfied_node received state: " + str(type(state)))
 
     # Invoke the new goal satisfied agent to assess the refined goal.
+    print(colorama.Fore.BLUE + "DEBUG: Invoking goal_satisfied_agent")
     response = goal_satisfied_agent.invoke(state)
     # Extract the output text.
     agent_text = ""
     if isinstance(response, dict) and "messages" in response:
+        print(colorama.Fore.BLUE + f"DEBUG: Found {len(response.get('messages', []))} messages in response")
+
         ai_messages = [msg.content.strip() for msg in response["messages"] if hasattr(msg, "content") and msg.content.strip()]
         agent_text = "\n".join(ai_messages).strip()
     else:
         agent_text = str(response)
+        print(colorama.Fore.BLUE + f"DEBUG: Response was not a dict with messages, using string representation")
+
     # if not agent_text:
     #     agent_text = str(response)
     print(colorama.Fore.YELLOW + f"Extracted AI message (Goal Satisfied): {agent_text}")
     print(colorama.Fore.MAGENTA + f" expecting user input")
 
-    user_input = interrupt(value="[Goal Satisfied Node] Is this goal satisfactory? (yes/no): ")
-    normalized_input = user_input.strip().lower()
-    print(colorama.Fore.MAGENTA + f" confirmed user input: {normalized_input}")
+    # user_input = interrupt(value="[Goal Satisfied Node] Is this goal satisfactory? (yes/no): ")
+    # normalized_input = user_input.strip().lower()
+    # print(colorama.Fore.MAGENTA + f" confirmed user input: {normalized_input}")
+    # confirmation_keywords = ["yes", "yeah", "yep", "good", "great", "agree", "ok", "sure", "satisfactory"]
+    # keyword_match = any(keyword in normalized_input.lower() for keyword in confirmation_keywords)
+    # print(colorama.Fore.BLUE + f"DEBUG: Simple keyword match result: {keyword_match}")
     
-    if any(keyword in normalized_input for keyword in ["valid", "confirmed", "yes"]):
-        print(colorama.Fore.GREEN + "User confirmed the goal is valid. Moving to node: end_node")
-        # final_message = {"role": "ai", "content": f"{agent_text}\nUser confirmed the goal is satisfactory."}
-        # if hasattr(state, "messages"):
-        #     state.messages.append(final_message)
-        # else:
-        #     state["messages"] = [final_message]
-        # Update the goal state with the new message.
-        # update_goal_state(state)
-        final_message = {"role": "ai", "content": f"Great! Your confirmation on the refined goal is appreciated. Let's proceed with the project as planned. If you have any more questions or need further clarification, feel free to ask."}
+    # # Use the dedicated confirmation agent for more nuanced detection
+    # print(colorama.Fore.BLUE + f"DEBUG: Invoking confirmation_agent for nuanced analysis")
+    
+    # # Create a simple state with just the user's message
+    # confirmation_state = {"messages": [{"role": "user", "content": normalized_input}]}
+    
+    # # Get confirmation agent's analysis
+    # confirmation_response = confirmation_agent.invoke(confirmation_state)
+    
+    # # Extract confirmation response with detailed debug
+    # confirmation_text = ""
+    # if isinstance(confirmation_response, dict) and "messages" in confirmation_response:
+    #     print(colorama.Fore.BLUE + f"DEBUG: Found {len(confirmation_response.get('messages', []))} messages in confirmation response")
+    #     confirmation_messages = [msg.content.strip() for msg in confirmation_response.get("messages", []) if hasattr(msg, "content") and msg.content.strip()]
+    #     confirmation_text = "\n".join(confirmation_messages).strip()
+    # else:
+    #     confirmation_text = str(confirmation_response)
+    
+    # print(colorama.Fore.BLUE + f"DEBUG: Confirmation agent response: '{confirmation_text}'")
+    
+    # # Determine if confirmation was detected
+    # confirmation_detected = "CONFIRMATION DETECTED" in confirmation_text.upper() or keyword_match
+    # print(colorama.Fore.BLUE + f"DEBUG: Final confirmation detection result: {confirmation_detected}")
+    
+    # if confirmation_detected:
+    #     print(colorama.Fore.GREEN + "User confirmed the goal is valid. Moving to node: end_node")
+    #     final_message = "Great! Your confirmation on the refined goal is appreciated. Let's proceed with the project as planned. If you have any more questions or need further clarification, feel free to ask."
 
-        if hasattr(state, "metadata"):
-            state.metadata["goal_confirmed"] = True
+    #     # Update metadata with confirmation
+    #     if hasattr(state, "metadata"):
+    #         state.metadata["goal_confirmed"] = True
+    #     else:
+    #         state["metadata"] = {"goal_confirmed": True}
+            
+    #     update_goal_state(state)
+        
+    #     print(colorama.Fore.CYAN + ">> Sending to end_node \n")
+    #     return Command(
+    #         update={"messages": [{"role": "ai", "content": final_message}]},
+    #         goto="end_node"
+    #     )
+    # else:
+    #     print(colorama.Fore.GREEN + "User did not confirm the goal. Moving to node: goal_creator_advisor")
+    #     rejection_message = f"{agent_text}\n\nLet's continue refining the goal to better meet your expectations."
+    #     return Command(
+    #         update={"messages": [{"role": "ai", "content": rejection_message}]},
+    #         goto="goal_creator_advisor"
+    #     )
+    try:
+        user_input = interrupt(value="[Goal Satisfied Node] Is this goal satisfactory? (yes/no): ")
+        normalized_input = user_input.strip().lower()
+        print(colorama.Fore.MAGENTA + f" confirmed user input: '{normalized_input}'")
+        
+        # EXPANDED keywords for better matching
+        confirmation_keywords = [
+            "yes", "yeah", "yep", "y", "good", "great", "agree", "ok", "okay", 
+            "sure", "satisfactory", "satisfied", "accept", "approved", "fine",
+            "sounds good", "looks good", "works", "perfect", "wonderful", "right"
+        ]
+        
+        # Check if ANY part of the input matches ANY keyword
+        keyword_match = any(keyword in normalized_input for keyword in confirmation_keywords)
+        print(colorama.Fore.BLUE + f"DEBUG: Keyword match check: {keyword_match}")
+        
+        # SIMPLIFIED FLOW: If keywords match, go to end_node, otherwise goal_creator_advisor
+        if keyword_match:
+            print(colorama.Fore.GREEN + f"*** CONFIRMATION DETECTED: '{normalized_input}' ***")
+            print(colorama.Fore.GREEN + "User confirmed the goal is valid. Moving to end_node")
+            
+            # Immediately prepare final state
+            final_message = "Great! Your confirmation on the refined goal is appreciated. Let's proceed with the project as planned."
+            
+            # Update metadata
+            if hasattr(state, "metadata"):
+                state["metadata"]["goal_confirmed"] = True
+            else:
+                state["metadata"] = {"goal_confirmed": True}
+            
+            # Return directly to end_node without additional confirmation checks
+            print(colorama.Fore.RED + "*** DIRECT ROUTING TO END_NODE ***")
+            return Command(
+                update={"messages": [{"role": "ai", "content": final_message}]},
+                goto="end_node"
+            )
         else:
-            state["metadata"] = {"goal_confirmed": True}
-        update_goal_state(state)
-        # return Command(
-        #     update={"messages": [final_message]},
-        #     goto="end_node"
-        # )
-        print(colorama.Fore.CYAN + ">> Moving to end_node via direct call \n")
-        # return end_node(state)
+            print(colorama.Fore.RED + f"*** NO CONFIRMATION DETECTED: '{normalized_input}' ***")
+            print(colorama.Fore.GREEN + "User did not confirm the goal. Moving to goal_creator_advisor")
+            return Command(
+                update={"messages": [{"role": "ai", "content": "Let's refine the goal further to meet your expectations."}]},
+                goto="goal_creator_advisor"
+            )
+    except Exception as e:
+        print(colorama.Fore.RED + f"ERROR in goal_satisfied_node: {str(e)}")
+        # Default to end_node in case of error to avoid loops
         return Command(
-            update={"messages": [{"role": "ai", "content": final_message}]},
+            update={"messages": [{"role": "ai", "content": "An error occurred processing your input. Let's finalize the goal as is."}]},
             goto="end_node"
         )
-        # return end_node(state)
-    else:
-        print(colorama.Fore.GREEN + "User did not confirm the goal. Moving to node: goal_creator_advisor")
-        return Command(
-            update={"messages": [{
-                "role": "ai",
-                "content": f"{agent_text}\nUser indicated further refinement is needed.",
-            }]},
-            goto="goal_creator_advisor"
-        )
+    # if any(keyword in normalized_input for keyword in ["valid", "confirmed", "yes"]):
+    #     print(colorama.Fore.GREEN + "User confirmed the goal is valid. Moving to node: end_node")
+    #     # final_message = {"role": "ai", "content": f"{agent_text}\nUser confirmed the goal is satisfactory."}
+    #     # if hasattr(state, "messages"):
+    #     #     state.messages.append(final_message)
+    #     # else:
+    #     #     state["messages"] = [final_message]
+    #     # Update the goal state with the new message.
+    #     # update_goal_state(state)
+    #     final_message = {"role": "ai", "content": f"Great! Your confirmation on the refined goal is appreciated. Let's proceed with the project as planned. If you have any more questions or need further clarification, feel free to ask."}
+
+    #     if hasattr(state, "metadata"):
+    #         state.metadata["goal_confirmed"] = True
+    #     else:
+    #         state["metadata"] = {"goal_confirmed": True}
+    #     update_goal_state(state)
+    #     # return Command(
+    #     #     update={"messages": [final_message]},
+    #     #     goto="end_node"
+    #     # )
+    #     print(colorama.Fore.CYAN + ">> Moving to end_node via direct call \n")
+    #     # return end_node(state)
+    #     return Command(
+    #         update={"messages": [{"role": "ai", "content": final_message}]},
+    #         goto="end_node"
+    #     )
+    #     # return end_node(state)
+    # else:
+    #     print(colorama.Fore.GREEN + "User did not confirm the goal. Moving to node: goal_creator_advisor")
+    #     return Command(
+    #         update={"messages": [{
+    #             "role": "ai",
+    #             "content": f"{agent_text}\nUser indicated further refinement is needed.",
+    #         }]},
+    #         goto="goal_creator_advisor"
+    #     )
    
 def decision_maker_node(
     state: MessagesState

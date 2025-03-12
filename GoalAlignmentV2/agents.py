@@ -24,7 +24,7 @@ def get_local_llm(model_name="deepseek-r1:14b", temperature=0.7, api_url="http:/
 #####################
 #   Agents (LLMs)   #
 #####################
-Think=False
+Think=False #MORE VERBOSE:
 goal_creator_model = get_local_llm(temperature=0.7, show_thinking=Think)
 goal_validator_model = get_local_llm(temperature=0.0,show_thinking=Think)
 decision_maker_model = get_local_llm(temperature=0.7,show_thinking=Think)
@@ -99,6 +99,22 @@ goal_satisfied_agent = create_react_agent(
         "both the LLM and the user appear satisfied with it. "
         "Always ask the user if they are satisfied with the goal. "
         "If the user is satisfied, include the word 'confirmed' in your final message. "
+        """IMPORTANT: When the user says anything that indicates confirmation, approval, or satisfaction with the goal (e.g., "sounds good", "satisfactory", "that works", "yes", etc.), clearly state in your response: "The goal is now CONFIRMED" to signal that the goal has been approved.
+        Keep responses concise and focused on refining the goal."""
+    ),
+)
 
+
+confirmation_tools = [dummy_tool]
+confirmation_agent = create_react_agent(
+    get_local_llm(temperature=0.0, show_thinking=False),  
+    confirmation_tools,
+    prompt=(
+       "You are a user confirmation detector. Your ONLY job is to determine if user input indicates confirmation.\n\n"
+        "Examples of confirmations: 'yes', 'sounds good', 'great', 'that works', 'I like it', etc.\n\n"
+        "ALWAYS respond in this EXACT format:\n"
+        "- If confirmed: 'CONFIRMATION DETECTED'\n"
+        "- If not confirmed: 'NO CONFIRMATION DETECTED'\n\n"
+        "Do not add ANY other text or explanation."
     ),
 )
