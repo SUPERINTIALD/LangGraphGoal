@@ -4,14 +4,37 @@ load_dotenv()
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from tools import dummy_tool
+
+#####################
+# Local DeepSeek Init
+####################
+from sys import path
+# path.append("d:\\Yuri\\CU BOULDER\\SPRING JUNIOR\\CSCI 4308\\AutoDS\\AutoDS")
+from DeepSeekLocal import DeepSeekLLM
+
+def get_local_llm(model_name="deepseek-r1:14b", temperature=0.7, api_url="http://localhost:11434/api/chat", show_thinking=False):
+    return DeepSeekLLM(
+        api_url=api_url,
+        model_name=model_name,
+        temperature=temperature,
+        show_thinking=show_thinking
+    )
+
+
 #####################
 #   Agents (LLMs)   #
 #####################
+Think=False
+goal_creator_model = get_local_llm(temperature=0.7, show_thinking=Think)
+goal_validator_model = get_local_llm(temperature=0.0,show_thinking=Think)
+decision_maker_model = get_local_llm(temperature=0.7,show_thinking=Think)
+goal_satisfied_model = get_local_llm(temperature=0.7,show_thinking=Think)
 
-goal_creator_model = ChatOpenAI(model="gpt-4", temperature=0.7)
-goal_validator_model = ChatOpenAI(model="gpt-4", temperature=0.0)
-decision_maker_model = ChatOpenAI(model="gpt-4", temperature=0.7)
-
+# goal_creator_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
+# goal_validator_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+# decision_maker_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
+# goal_satisfied_model = ChatOpenAI(model="gpt-4", temperature=0.7)
+#######################################################################
 
 goal_creator_tools = [dummy_tool]
 goal_creator_agent = create_react_agent(
@@ -67,7 +90,6 @@ decision_maker_agent = create_react_agent(
     ),
 )
 
-goal_satisfied_model = ChatOpenAI(model="gpt-4", temperature=0.7)
 goal_satisfied_tools = [dummy_tool]
 goal_satisfied_agent = create_react_agent(
     goal_satisfied_model,
